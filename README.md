@@ -4,6 +4,47 @@ The same portfolio site, repackaged as a Spring Boot app, following the exact
 project layout from the `demo` starter (Maven + Spring Boot 4.1.0 + Thymeleaf +
 Spring Web MVC).
 
+## `static/` vs `templates/` — why this matters
+
+Spring Boot treats these two folders completely differently:
+
+- **`static/`** — files served *as-is*, no server-side processing. Spring just
+  hands the raw file to the browser. If your whole page lives here, you're not
+  really using Spring for the page at all — it's a plain HTML site parked
+  inside a Spring Boot folder.
+- **`templates/`** — files rendered by **Thymeleaf**, through a `@Controller`
+  method, and can receive real data from Java before the HTML reaches the
+  browser (loops, variables, conditionals).
+
+This project keeps `index.html` in `templates/`, served by `PortfolioController`,
+and — importantly — the **projects section is genuinely data-driven**, not just
+hardcoded HTML with `th:` attributes sprinkled on top. `PortfolioController`
+builds a `List<Project>` and passes it into the model; the template loops over
+it with `th:each`:
+
+```java
+@GetMapping("/")
+public String indexPage(Model model) {
+    model.addAttribute("projects", buildProjects());
+    return "index";
+}
+```
+
+```html
+<div class="project-card reveal" th:each="project, iterStat : ${projects}">
+  <h3 class="project-name" th:text="${project.name}">Project Name</h3>
+  ...
+  <span class="skill-tag" th:each="tag : ${project.tags}" th:text="${tag}">Tag</span>
+</div>
+```
+
+Add a 4th project by adding one more `new Project(...)` entry in
+`PortfolioController.buildProjects()` — no HTML editing required. That's the
+actual point of using a template engine instead of static files.
+
+Only `css/`, `js/`, and `assets/img/` sit in `static/` — which is correct,
+since those are genuinely static assets (no server-side logic needed to serve
+a stylesheet or an image).
 
 ## Structure
 
@@ -168,10 +209,12 @@ so this now works, which wasn't true before that date. Reference:
 
 **How it works here:**
 - `Dockerfile.vercel` at the project root — a two-stage build (Maven build → slim JRE runtime)
-- Vercel's contract: the server must listen on `$PORT`, which Vercel injects at
-  runtime. `application.properties` already does this: `server.port=${PORT:9090}`
-  (falls back to 9090 only if `PORT` is unset, which only happens when running
-  locally without Docker)
+- Vercel's contract for container images: it routes traffic to port **80** by
+  default. You only get a different port if you explicitly set a `PORT`
+  environment variable in the project's settings. `application.properties`
+  reflects this: `server.port=${PORT:80}` — defaults to 80 (matching Vercel),
+  and only uses something else if you pass `PORT` yourself (e.g. locally via
+  `docker run -e PORT=9090`).
 - The container is stateless (no persistent storage between requests) — that's
   fine here, since the contact form doesn't need to remember anything, it just
   sends an email and returns

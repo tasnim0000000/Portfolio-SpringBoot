@@ -1,0 +1,26 @@
+# Dockerfile.vercel
+#
+# Vercel builds this automatically when you deploy (git push, or `vercel deploy`).
+# It does NOT run for local `./mvnw spring-boot:run` — that path is unaffected.
+#
+# Contract: the server must listen on $PORT (Vercel injects it at runtime).
+# application.properties already handles this via server.port=${PORT:9090}.
+
+# ---- Build stage ----
+FROM maven:3.9-eclipse-temurin-25 AS build
+WORKDIR /app
+
+# Cache dependency resolution in its own layer so code-only changes
+# don't force a full re-download on every build.
+COPY pom.xml .
+RUN mvn -B dependency:go-offline
+
+COPY src ./src
+RUN mvn -B clean package -DskipTests
+
+# ---- Run stage ----
+FROM eclipse-temurin:25-jre
+WORKDIR /app
+COPY --from=build /app/target/*.jar app.jar
+
+ENTRYPOINT ["java", "-jar", "app.jar"]

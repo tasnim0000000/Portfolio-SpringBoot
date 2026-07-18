@@ -1,19 +1,47 @@
 package com.tasnim.portfolio;
-// serves the portfolio page and feeds real project data into the Thymeleaf template
+// serves the portfolio page, feeds real project data into the Thymeleaf template,
+// and handles the contact form submission
 
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.List;
 
 @Controller
 public class PortfolioController {
 
+    private final ContactMailService contactMailService;
+
+    public PortfolioController(ContactMailService contactMailService) {
+        this.contactMailService = contactMailService;
+    }
+
     @GetMapping("/")
     public String indexPage(Model model) {
         model.addAttribute("projects", buildProjects());
         return "index";
+    }
+
+    @PostMapping("/contact")
+    public String submitContactForm(
+            @RequestParam String name,
+            @RequestParam String email,
+            @RequestParam String message,
+            RedirectAttributes redirectAttributes) {
+
+        try {
+            contactMailService.sendContactEmail(name, email, message);
+            redirectAttributes.addFlashAttribute("contactSuccess", true);
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("contactError", true);
+        }
+
+        // Redirect back to the contact section on the single-page site
+        return "redirect:/#contact";
     }
 
     private List<Project> buildProjects() {

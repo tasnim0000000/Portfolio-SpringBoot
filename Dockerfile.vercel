@@ -24,7 +24,7 @@ COPY src ./src
 RUN mvn -B clean package -DskipTests
 
 # ---- Run stage ----
-FROM --platform=linux/amd64 eclipse-temurin:25-jre
+FROM --platform=linux/amd64 eclipse-temurin:25-jre-alpine
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 

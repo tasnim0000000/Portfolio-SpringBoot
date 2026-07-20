@@ -10,6 +10,13 @@
 # --platform=linux/amd64 is pinned explicitly on both stages so the image is
 # always built for the standard x86_64 architecture Vercel's Fluid compute
 # runs on, regardless of what CPU the build machine itself happens to be.
+#
+# The run stage uses the Alpine JRE variant specifically (not the default
+# Debian-based eclipse-temurin:25-jre) to keep the final image well under
+# Vercel's 250MB uncompressed function size limit, which applies to
+# container-image functions the same as regular ones. The Debian-based JRE
+# image alone is typically 200MB+, which combined with our app jar likely
+# pushed us right past that ceiling.
 
 # ---- Build stage ----
 FROM --platform=linux/amd64 maven:3.9-eclipse-temurin-25 AS build

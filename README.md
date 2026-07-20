@@ -207,6 +207,16 @@ Vercel added Dockerfile-based deployments on **June 30, 2026** (`Vercel Function
 so this now works, which wasn't true before that date. Reference:
 [vercel.com/blog/dockerfile-on-vercel](https://vercel.com/blog/dockerfile-on-vercel)
 
+**Important — image size limit:** container-image functions inherit Vercel's
+standard function size limit of **250MB uncompressed**. The Debian-based
+`eclipse-temurin:25-jre` runtime image alone is typically 200MB+, which combined
+with the app jar likely exceeds that ceiling — this produced a silent
+`INTERNAL_FUNCTION_INVOCATION_FAILED` on every request with no log output,
+even for a completely minimal Spring Boot page, in earlier testing.
+`Dockerfile.vercel`'s run stage now uses `eclipse-temurin:25-jre-alpine`
+instead, which is dramatically smaller and should land comfortably under the
+limit.
+
 **How it works here:**
 - `Dockerfile.vercel` at the project root — a two-stage build (Maven build → slim JRE runtime)
 - Vercel's contract for container images: it routes traffic to port **80** by

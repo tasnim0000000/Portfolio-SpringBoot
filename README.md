@@ -1,265 +1,52 @@
-# Tasnim Ahmed — Portfolio (Spring Boot version)
+# Portfolio (Vercel diagnostic build — mail/contact form removed)
 
-The same portfolio site, repackaged as a Spring Boot app, following the exact
-project layout from the `demo` starter (Maven + Spring Boot 4.1.0 + Thymeleaf +
-Spring Web MVC).
+This is a stripped-down copy of the full Spring Boot portfolio, with **every
+trace of the mail/contact-form feature removed**, for one purpose only:
+isolating whether the 500 errors on Vercel are caused by the mail setup or
+by something else entirely.
 
-## `static/` vs `templates/` — why this matters
+## What's different from the full project
 
-Spring Boot treats these two folders completely differently:
+Removed completely:
+- `spring-boot-starter-mail` dependency (`pom.xml`)
+- `ContactMailService.java` (deleted)
+- The `/contact` POST endpoint and mail service wiring in `PortfolioController.java`
+- All `spring.mail.*` and `portfolio.contact.recipient` lines in `application.properties`
+- The contact form HTML, and its success/error banners, in `templates/index.html`
 
-- **`static/`** — files served *as-is*, no server-side processing. Spring just
-  hands the raw file to the browser. If your whole page lives here, you're not
-  really using Spring for the page at all — it's a plain HTML site parked
-  inside a Spring Boot folder.
-- **`templates/`** — files rendered by **Thymeleaf**, through a `@Controller`
-  method, and can receive real data from Java before the HTML reaches the
-  browser (loops, variables, conditionals).
+Everything else — the Thymeleaf `th:each` project cards, the CSS, the JS,
+`Dockerfile.vercel`, the `server.port=${PORT:80}` fix, the `--platform=linux/amd64`
+pin — is unchanged from the full project.
 
-This project keeps `index.html` in `templates/`, served by `PortfolioController`,
-and — importantly — the **projects section is genuinely data-driven**, not just
-hardcoded HTML with `th:` attributes sprinkled on top. `PortfolioController`
-builds a `List<Project>` and passes it into the model; the template loops over
-it with `th:each`:
+## How to use this
 
-```java
-@GetMapping("/")
-public String indexPage(Model model) {
-    model.addAttribute("projects", buildProjects());
-    return "index";
-}
-```
+**Don't replace your real project with this.** Deploy this as a **separate,
+throwaway Vercel project** just to get a clean answer, then come back to the
+real one once we know what's happening:
 
-```html
-<div class="project-card reveal" th:each="project, iterStat : ${projects}">
-  <h3 class="project-name" th:text="${project.name}">Project Name</h3>
-  ...
-  <span class="skill-tag" th:each="tag : ${project.tags}" th:text="${tag}">Tag</span>
-</div>
-```
+1. Push this folder to a **new**, separate GitHub repo (don't overwrite your
+   real `Portfolio-SpringBoot` repo)
+2. Import that new repo into Vercel as a **new** project
+3. No environment variables needed this time — there's nothing left that
+   reads any
+4. Deploy, then visit the URL
 
-Add a 4th project by adding one more `new Project(...)` entry in
-`PortfolioController.buildProjects()` — no HTML editing required. That's the
-actual point of using a template engine instead of static files.
+## Reading the result
 
-Only `css/`, `js/`, and `assets/img/` sit in `static/` — which is correct,
-since those are genuinely static assets (no server-side logic needed to serve
-a stylesheet or an image).
+- **Loads fine** → the mail setup was the problem in the full project. Next
+  step: figure out why `MAIL_USERNAME`/`MAIL_APP_PASSWORD` aren't reaching the
+  container the way they do locally.
+- **Still 500s** → mail was never the issue. The problem is something about
+  the container/Vercel project itself, independent of any app code — worth
+  taking straight to Vercel's support/community with this exact repro, since
+  it means even a "vanilla" Spring Boot page fails the same way.
 
-## Structure
-
-```
-portfolio-springboot/
-├── pom.xml
-├── Dockerfile.vercel                          ← used by Vercel's container deploy (see below)
-├── .dockerignore
-├── mvnw / mvnw.cmd / .mvn/                    ← Maven wrapper (same as demo)
-├── src/
-│   ├── main/
-│   │   ├── java/com/tasnim/portfolio/
-│   │   │   ├── PortfolioApplication.java      ← main class (was DemoApplication)
-│   │   │   ├── PortfolioController.java       ← maps "/" → index template, feeds project data, handles /contact
-│   │   │   ├── Project.java                   ← plain data class for the model
-│   │   │   └── ContactMailService.java        ← sends the contact form email
-│   │   └── resources/
-│   │       ├── application.properties         ← port 9090, address 0.0.0.0
-│   │       ├── static/
-│   │       │   ├── css/style.css
-│   │       │   ├── js/main.js
-│   │       │   └── assets/img/
-│   │       │       ├── profile.jpg             ← ADD PHOTO HERE
-│   │       │       └── projects/
-│   │       │           ├── pawpal.jpg          ← ADD SCREENSHOTS HERE
-│   │       │           ├── studyflow.jpg
-│   │       │           └── coxs-canvas.jpg
-│   │       └── templates/
-│   │           └── index.html                 ← the whole portfolio page, th:each over ${projects}
-│   └── test/java/com/tasnim/portfolio/
-│       └── PortfolioApplicationTests.java
-```
-
-This mirrors your `demo` ZIP one-to-one: same Spring Boot version (4.1.0), same
-dependency set (Thymeleaf + Web MVC + devtools), same `static/` + `templates/`
-split, same `application.properties` settings (port `9090`, bound to `0.0.0.0`).
-
-## Other Thymeleaf wiring
-
-The rest of the page (hero, about, skills, experience, research, contact) is
-static content — no per-item repetition needed there, so it stays as plain
-HTML. But every asset reference still goes through Thymeleaf's URL resolution
-using **natural templating**: both a plain `href`/`src` (so the file still
-opens correctly if double-clicked directly) and a `th:href`/`th:src` (what
-Thymeleaf actually uses when the app serves the page):
-
-```html
-<link rel="stylesheet" href="css/style.css" th:href="@{/css/style.css}" />
-```
-
-## Running it
+## Running it locally first (recommended before deploying)
 
 ```bash
-./mvnw spring-boot:run
+docker build -f Dockerfile.vercel -t portfolio-nomail .
+docker run -p 9090:9090 -e PORT=9090 portfolio-nomail
 ```
 
-Then visit **http://localhost:9090**
-
-(Or build a jar: `./mvnw clean package` → `java -jar target/portfolio-0.0.1-SNAPSHOT.jar`)
-
-> Note: this was scaffolded in a sandboxed environment without access to Maven
-> Central, so the build itself hasn't been run here — but the structure,
-> dependencies, and Thymeleaf wiring exactly match your working `demo` project,
-> so `./mvnw spring-boot:run` should work the same way it does for that one.
-
-## Contact form (sends email directly to you)
-
-The Contact section now has a real form (Name / Email / Message) at the bottom
-of the page. Submitting it does a `POST /contact`, which sends an email
-straight to `tasnimtbh123@gmail.com` — the visitor's email is set as the
-**Reply-To**, so hitting "Reply" in your inbox replies directly to them.
-
-**How it's wired:**
-- `ContactMailService.java` — builds and sends the email via Spring's `JavaMailSender`
-- `PortfolioController.java` — `@PostMapping("/contact")` receives the form fields,
-  calls the mail service, and redirects back to `/#contact` with a success/error flag
-- `templates/index.html` — the `<form>` itself, plus a success/error banner that
-  appears after submitting (`th:if="${contactSuccess}"` / `th:if="${contactError}"`)
-
-### 1. Generate a Gmail App Password
-
-Gmail no longer allows apps to sign in with your normal account password — you
-need an **App Password** instead:
-
-1. Go to your Google Account → **Security**
-2. Turn on **2-Step Verification** if it isn't already on (required for App Passwords)
-3. Go to **Security → 2-Step Verification → App passwords**
-   (direct link: https://myaccount.google.com/apppasswords)
-4. Create one named something like "Portfolio contact form"
-5. Google gives you a 16-character password (e.g. `abcd efgh ijkl mnop`) — copy it,
-   spaces don't matter either way
-
-This app password is what goes into `MAIL_APP_PASSWORD` below — **not** your real
-Gmail password.
-
-### 2. Set the two environment variables
-
-`application.properties` reads credentials from environment variables, so
-nothing sensitive is ever committed to git:
-
-```properties
-spring.mail.username=${MAIL_USERNAME}
-spring.mail.password=${MAIL_APP_PASSWORD}
-```
-
-**Option A — set them in your terminal before running:**
-
-```bash
-export MAIL_USERNAME=tasnimtbh123@gmail.com
-export MAIL_APP_PASSWORD=abcdefghijklmnop
-./mvnw spring-boot:run
-```
-
-(Windows PowerShell: `$env:MAIL_USERNAME="..."`, `$env:MAIL_APP_PASSWORD="..."`)
-
-**Option B — set them in your IDE's run configuration** (IntelliJ: Run →
-Edit Configurations → Environment variables) so you don't have to `export`
-them every time.
-
-**Option C — a gitignored local properties file**, if you find that easier:
-create `src/main/resources/application-local.properties` (already excluded
-in `.gitignore`) with:
-```properties
-spring.mail.username=tasnimtbh123@gmail.com
-spring.mail.password=abcdefghijklmnop
-```
-then run with `SPRING_PROFILES_ACTIVE=local ./mvnw spring-boot:run`.
-
-Whichever option you pick, **never commit the real app password to git.**
-
-### 3. Test it
-
-Run the app, scroll to the Contact section, fill out the form, submit — you
-should get an email at `tasnimtbh123@gmail.com` within a few seconds, and the
-page will show a green "message sent" banner. If something's misconfigured
-(wrong password, env vars not set, etc.) you'll see a red error banner instead
-— check the console logs for the underlying `MailException`.
-
-### Deploying this somewhere later
-
-If you eventually host this (not just run it locally), set `MAIL_USERNAME` and
-`MAIL_APP_PASSWORD` as environment variables / secrets in whatever platform you
-deploy to (Render, Railway, a VPS, etc.) — the same way you would for any other
-secret. Don't put the real values in `application.properties` itself.
-
-
-
-Same as the static version — drop files into:
-- `src/main/resources/static/assets/img/profile.jpg`
-- `src/main/resources/static/assets/img/projects/pawpal.jpg`
-- `src/main/resources/static/assets/img/projects/studyflow.jpg`
-- `src/main/resources/static/assets/img/projects/coxs-canvas.jpg`
-
-See the `PLACE_PHOTOS_HERE.md` files in those folders for sizing details.
-
-## Deploying to Vercel
-
-Vercel added Dockerfile-based deployments on **June 30, 2026** (`Vercel Functions` +
-`Fluid compute`), and Spring Boot is explicitly one of their supported examples —
-so this now works, which wasn't true before that date. Reference:
-[vercel.com/blog/dockerfile-on-vercel](https://vercel.com/blog/dockerfile-on-vercel)
-
-**How it works here:**
-- `Dockerfile.vercel` at the project root — a two-stage build (Maven build → slim JRE runtime)
-- Vercel's contract for container images: it routes traffic to port **80** by
-  default. You only get a different port if you explicitly set a `PORT`
-  environment variable in the project's settings. `application.properties`
-  reflects this: `server.port=${PORT:80}` — defaults to 80 (matching Vercel),
-  and only uses something else if you pass `PORT` yourself (e.g. locally via
-  `docker run -e PORT=9090`).
-- The container is stateless (no persistent storage between requests) — that's
-  fine here, since the contact form doesn't need to remember anything, it just
-  sends an email and returns
-
-### Steps
-
-1. Push this project to a GitHub repo (Vercel deploys from git, or via `vercel deploy` from the CLI)
-2. In the Vercel dashboard: **Add New → Project → Import** your repo. Vercel will
-   detect `Dockerfile.vercel` and build/deploy it as a container-backed Function.
-3. **Set the same two environment variables** as local dev, but in
-   **Project Settings → Environment Variables** on Vercel:
-   - `MAIL_USERNAME` → your Gmail address
-   - `MAIL_APP_PASSWORD` → the Gmail App Password (see "Contact form" section above)
-4. Redeploy (or it'll deploy automatically after you add the env vars, depending
-   on your project settings). Every subsequent `git push` rebuilds and redeploys
-   automatically, with its own preview URL.
-
-### Testing the container locally first (recommended before deploying)
-
-```bash
-docker build -f Dockerfile.vercel -t portfolio .
-docker run -p 9090:9090 \
-  -e PORT=9090 \
-  -e MAIL_USERNAME=tasnimtbh123@gmail.com \
-  -e MAIL_APP_PASSWORD=abcdefghijklmnop \
-  portfolio
-```
-
-Then visit `http://localhost:9090` — if the page loads and the contact form
-sends mail, the same image will work on Vercel.
-
-> Note: this Dockerfile was written by hand against Vercel's published contract
-> (listen on `$PORT`, default 80) rather than test-deployed here, since this
-> sandbox has no access to Vercel or Docker Hub. Do a local `docker build` test
-> (above) before pushing to Vercel to confirm the base image tags
-> (`maven:3.9-eclipse-temurin-25`, `eclipse-temurin:25-jre`) resolve correctly
-> in your environment — swap the Java version tag if your registry doesn't have
-> a `25` variant yet.
-
-
-
-## Extending it later
-
-The contact form currently sends a plain-text email with name/email/message.
-Natural next steps if you want to build on it: basic spam protection (a honeypot
-field, or rate-limiting by IP), saving submissions to a database as well as
-emailing them, or switching to a transactional email API (SendGrid, Resend,
-Postmark) instead of Gmail SMTP if you outgrow Gmail's sending limits.
+Visit `http://localhost:9090` — should look identical to the full site,
+minus the contact form section at the bottom.

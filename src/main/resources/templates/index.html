@@ -648,37 +648,6 @@
       </div>
 
     </div>
-
-    <div class="contact-form-wrap reveal">
-
-      <div class="contact-form-banner contact-form-banner-success" th:if="${contactSuccess}">
-        <span class="cfb-icon">✓</span>
-        Thanks — your message has been sent. I'll get back to you soon.
-      </div>
-      <div class="contact-form-banner contact-form-banner-error" th:if="${contactError}">
-        <span class="cfb-icon">!</span>
-        Something went wrong sending that — please try again, or email me directly.
-      </div>
-
-      <form class="contact-form" th:action="@{/contact}" method="post">
-        <div class="form-row">
-          <div class="form-group">
-            <label for="cf-name">Name</label>
-            <input type="text" id="cf-name" name="name" required maxlength="120" placeholder="Your name" />
-          </div>
-          <div class="form-group">
-            <label for="cf-email">Email</label>
-            <input type="email" id="cf-email" name="email" required maxlength="180" placeholder="you@example.com" />
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="cf-message">Message</label>
-          <textarea id="cf-message" name="message" required maxlength="4000" rows="5" placeholder="What would you like to talk about?"></textarea>
-        </div>
-        <button type="submit" class="btn-hire form-submit-btn">Send Message</button>
-      </form>
-
-    </div>
   </section>
 
   <hr class="divider">
